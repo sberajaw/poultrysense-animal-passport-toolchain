@@ -1,0 +1,92 @@
+version: '2'
+
+messages:
+  $i18n: locales.yml
+
+template:
+  name:
+    $ref: "#/messages/template.name"
+  description:
+    $ref: "#/messages/template.description"
+  header: '![](toolchain.svg?localize)'
+  icon: icon.svg
+  required:
+    - repo
+    - build
+  info:
+    git url: >
+      "[" + $env.repository + "]" +
+        "(" + $env.repository + ")"
+    git branch: >
+      "[" + $env.branch + "]" +
+        "(" + $env.repository +
+          "/tree/" + $env.branch + ")"
+
+toolchain:
+  name: >
+    $env.toolchainName ? '{{toolchainName}}' :
+      'poultrysense-animal-passport-{{timestamp}}'
+  template:
+    getting_started:
+      $ref: "#/messages/template.gettingStarted"
+
+services:
+  repo:
+    service_id: >
+      $env.source_provider ? $env.source_provider : 'githubpublic'
+    parameters:
+      repo_name: '{{toolchain.name}}'
+      repo_url: >
+        $env.type === 'link' ? 
+          $env.app_repo : 'https://github.com/sberajaw/poultrysense-animal-passport'
+      source_repo_url: >
+        $env.type === 'fork' || $env.type === 'clone' ? 
+          $env.app_repo : 'https://github.com/sberajaw/poultrysense-animal-passport'
+      type: $env.type || 'clone'
+      has_issues: true
+      enable_traceability: true
+  
+  # Pipelines
+  build:
+    service_id: pipeline
+    parameters:
+      services:
+        - repo
+      name: '{{services.repo.parameters.repo_name}}'
+      ui-pipeline: true
+      configuration:
+        content:
+          $text: pipeline.yml
+        env:
+          GIT_REPO: repo
+          APP_NAME: '{{form.pipeline.parameters.app-name}}'
+          IMAGE_NAME: '{{form.pipeline.parameters.app-name}}'
+          REGISTRY_REGION_ID: '{{form.pipeline.parameters.registry-region}}'
+          REGISTRY_NAMESPACE: '{{form.pipeline.parameters.registry-namespace}}'
+          API_KEY: '{{form.pipeline.parameters.api-key}}'
+          CODE_ENGINE_PROJECT: '{{form.pipeline.parameters.code-engine-project}}'
+          CODE_ENGINE_REGION: '{{form.pipeline.parameters.code-engine-region}}'
+          CODE_ENGINE_RESOURCE_GROUP: '{{form.pipeline.parameters.code-engine-resource-group}}'
+          SERVICE_BINDINGS: '{{form.pipeline.parameters.service-bindings}}'
+        execute: true
+  
+  # Web IDE
+  webide:
+    service_id: orion
+
+# Deployment
+form:
+  pipeline:
+    parameters:
+      app-name: >
+        $env.appName ?
+          '{{appName}}' : '{{services.repo.parameters.repo_name}}'
+      registry-region: '{{registryRegion}}'
+      registry-namespace: '{{registryNamespace}}'
+      api-key: '{{apiKey}}'
+      code-engine-project: '{{codeEngineProject}}'
+      code-engine-region: '{{codeEngineRegion}}'
+      code-engine-resource-group: '{{codeEngineResourceGroup}}'
+      service-bindings: '{{serviceBindings}}'
+    schema:
+      $ref: form-schema.json
